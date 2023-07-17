@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://kit.fontawesome.com/376efd05f3.js" crossorigin="anonymous"></script>
+    <link href="./style/main.css"  rel="stylesheet"></link>
+    <script src="https://cdn.jsdelivr.net/npm/vue-tailwind@2.5.1/dist/components.min.js"></script>
+    <title>R and M api</title> 
+    <style>
+      .preloader{
+        display: flex;
+          justify-content: center;
+          align-items: center;
+          height: 100vh;
+      }
+      .preloader div{
+        /* border: 8px solid #f3f3f3;
+          border-top: 8px solid #3498db;
+          border-radius: 50%;
+          width: 60px;
+          height: 60px; */
+          animation: spin 2s linear infinite;
+        
+      } 
+      .img-remove-bg::after{    
+        background: linear-gradient(transparent, transparent), linear-gradient(to right, white, white);
+          background-blend-mode: color, normal; 
+      }
+      @keyframes spin {
+          0% {
+            transform: rotate(0deg);
+          }
+          100% {
+            transform: rotate(360deg);
+          }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="flex  h-screen" v-if="locations.length || !isBusy">
+            <aside class="basis-1/3  ">
+              <ul class="border-2 p-2 flex flex-col  overflow-scroll h-screen">
+                <li v-for="(l,index) in locations"   @click="selectLocation(l)" :class="{'bg-gray-200': l.id == location.id}" :key="index" class="p-4 m-2 hover:bg-gray-200 cursor-pointer rounded-xl ">
+                    <span   >
+                        <span class="block">
+                          <i class="fa-solid " :class="iconType(l.type)"></i> 
+                          {{l.name}} </span>
+          
+                        <span class="block">Dimension: {{l.dimension}}</span>
+                    </span>
+                </li> 
+              </ul>   
+            </aside>
+            <main class="basis-2/3  h-screen overflow-scroll ">
+              <h2 v-if="residents.length" class="text-center w-100 h-12  p-2 text-xl sticky top-0 z-10 bg-white shadow-md">
+                {{locationsSelected.name}}
+              </h2>
+              <div v-if="residents.length"   class="flex flex-row flex-wrap justify-stretch gap-2">
+                <div v-for="resident in residentsOrdered" :key="resident.id"  class=" basis-1/4 bg-white px-6 pt-10 pb-8 shadow-xl ring-1 ring-gray-900/5 sm:mx-auto sm:max-w-lg sm:rounded-lg sm:px-10 w-48">
+                  <img :src="resident.image" alt="" class="rounded-md">
+                  <span class="flex flex-row justify-between text-xl py-4 px-2">
+                    <h4>{{resident.name}}</h4>
+                    <h5 :class="resident.status == 'Alive'?'text-red-500':'text-gray-700'"> 
+                      <i class="fa-solid"  :class="resident.status == 'Alive'?'fa-heart-pulse':'fa-skull-crossbones'"></i>
+                    </h5>
+                  </span>
+                  <span class="flex flex-row justify-between pl-2">
+                    Episodes <span class=" px-2 py-1 ">{{resident.episode.length  }}</span>
+                  </span>
+                  </div>
+              </div>
+                <div v-else :class="{'preloader':isBusy,}" class="flex flex-row justify-center items-center h-full   ">
+                  <div class="flex flex-col">
+                    <h6 v-if="!isBusy" class="text-2xl text-green-600 p-4 m-4">
+                      NO HAY RESIDENTES EN LA LOCACION SELECCIONADA
+                    </h6>
+                    <!-- <div class="preloader"> -->
+                      <div class="flex justify-center ">
+                        <img  class="w-48 img-remove-bg" src="https://rhinoshield.es/cdn/shop/collections/R_M_collab_logo.jpg?v=1623834383" alt="loader"> 
+                      <!-- </div> -->
+
+                    </div>
+                  </div>
+                </pre>
+            </main>
+          </div>
+    </div>
+    <script type="module">
+        import { createApp, ref,reactive } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js'
+
+        createApp({
+            async created(){
+                await this.getLocations()
+            },
+            setup() {
+              const isBusy = ref(false)
+                const location = reactive({})
+                const locations = reactive([])
+                const residents = reactive([])
+                return {
+                  isBusy,
+                    location,locations,residents
+                }
+            },
+            methods:{
+                async getLocations(){
+                    let data = await fetch('https://rickandmortyapi.com/api/location')
+                    const {results} = await data.json() 
+                      results.map((el)=>this.locations.push(el))
+                },
+                async selectLocation(item){
+                    Object.assign(this.location,item) 
+                    await this.getCharacters(this.residentsId)
+                },
+                async getCharacters(id){ 
+                    
+                    this.isBusy = id || true 
+                    if(!id) return  
+                    let data = await fetch(`https://rickandmortyapi.com/api/character/${id}`)
+                    const results = await data.json() 
+                    if(Array.isArray(results)){
+                      Object.assign(this.residents,results)
+                    }
+                    else{
+                      this.residents.length = 0
+                      this.residents.push(results)
+                    }
+                    
+                    this.isBusy = false
+                },
+                iconType(type){
+                  const types = {
+                    Planet: 'fa-globe',
+                    Dream:'fa-smog',
+                    TV:'fa-tv',
+                    Cluster: 'fa-users', 
+                    Microverse: 'fa-circle-nodes',
+                    Resort: 'fa-hotel',
+                    'Fantasy town':'fa-mountain-city',
+                    'Space station': 'fa-satellite',
+                  }
+                  return types[type] || 'fa-astronaut'
+                }
+            },
+            computed: {
+                locationsSelected(){
+                    return this.location || "select a location"
+                },
+                residentsId(){ 
+                    return this.location.residents.map(el => el.split('/').pop()).join(',')
+                },
+                residentsOrdered( ){
+                  return this.residents.sort( (a,b) =>  a.name.localeComp > b.name )
+                },
+
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>
